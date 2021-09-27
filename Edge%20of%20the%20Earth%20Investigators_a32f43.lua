@@ -79,8 +79,8 @@ end
 function createSetupButton()
     self.createButton({
         label="Setup", click_function="buttonClick_setup", function_owner=self,
-        position={0,0.1,-2.1}, rotation={0,0,0}, height=350, width=800,
-        font_size=250, color={0,0,0}, font_color={1,1,1}
+        position={0,3,-6}, rotation={0,0,0}, height=500, width=1200,
+        font_size=350, color={0,0,0}, font_color={1,1,1}
     })
 end
 
@@ -168,41 +168,41 @@ end
 function createSetupActionButtons(move)
     self.createButton({
         label="Cancel", click_function="buttonClick_cancel", function_owner=self,
-      position={-1,0.1,-2.1}, rotation={0,0,0}, height=350, width=900,
-        font_size=250, color={0,0,0}, font_color={1,1,1}
+      position={-1.4,3,-6}, rotation={0,0,0}, height=500, width=1200,
+        font_size=350, color={0,0,0}, font_color={1,1,1}
     })
 
     self.createButton({
         label="Submit", click_function="buttonClick_submit", function_owner=self,
-        position={-1,0.1,-3.7}, rotation={0,0,0}, height=350, width=900,
-        font_size=250, color={0,0,0}, font_color={1,1,1}
+        position={-1.4,3,-8.4}, rotation={0,0,0}, height=500, width=1200,
+        font_size=350, color={0,0,0}, font_color={1,1,1}
     })
 
     if move == false then
       self.createButton({
           label="Add", click_function="buttonClick_add", function_owner=self,
-          position={1,0.1,-2.1}, rotation={0,0,0}, height=350, width=900,
-          font_size=250, color={0,0,0}, font_color={0.25,1,0.25}
+          position={1.4,3,-6}, rotation={0,0,0}, height=500, width=1200,
+          font_size=350, color={0,0,0}, font_color={0.25,1,0.25}
       })
 
         if fresh == false then
             self.createButton({
                 label="Set New", click_function="buttonClick_setNew", function_owner=self,
-                position={1,0.1,-3.7}, rotation={0,0,0}, height=350, width=900,
-                font_size=250, color={0,0,0}, font_color={0.75,0.75,1}
+                position={1.4,3,-8.4}, rotation={0,0,0}, height=500, width=1200,
+                font_size=350, color={0,0,0}, font_color={0.75,0.75,1}
             })
             self.createButton({
                 label="Remove", click_function="buttonClick_remove", function_owner=self,
-                position={1,0.1,-2.9}, rotation={0,0,0}, height=350, width=900,
-                font_size=250, color={0,0,0}, font_color={1,0.25,0.25}
+                position={1.4,3,-7.2}, rotation={0,0,0}, height=500, width=1200,
+                font_size=350, color={0,0,0}, font_color={1,0.25,0.25}
             })
         end
     end
 
     self.createButton({
         label="Reset", click_function="buttonClick_reset", function_owner=self,
-        position={-1,0.1,-2.9}, rotation={0,0,0}, height=350, width=900,
-        font_size=250, color={0,0,0}, font_color={1,1,1}
+        position={-1.4,3,-7.2}, rotation={0,0,0}, height=500, width=1200,
+        font_size=350, color={0,0,0}, font_color={1,1,1}
     })
 end
 
@@ -384,18 +384,18 @@ end
 function createMemoryActionButtons()
     self.createButton({
         label="Place", click_function="buttonClick_place", function_owner=self,
-        position={1,0.1,2.1}, rotation={0,0,0}, height=350, width=800,
-        font_size=250, color={0,0,0}, font_color={1,1,1}
+        position={2.4,3,7}, rotation={0,0,0}, height=850, width=2000,
+        font_size=700, color={0,0,0}, font_color={1,1,1}
     })
     self.createButton({
         label="Recall", click_function="buttonClick_recall", function_owner=self,
-        position={-1,0.1,2.1}, rotation={0,0,0}, height=350, width=800,
-        font_size=250, color={0,0,0}, font_color={1,1,1}
+        position={-2.4,3,7}, rotation={0,0,0}, height=850, width=2000,
+        font_size=700, color={0,0,0}, font_color={1,1,1}
     })
     self.createButton({
         label="Setup", click_function="buttonClick_setup", function_owner=self,
-        position={0,0.1,-2.1}, rotation={0,0,0}, height=350, width=800,
-        font_size=250, color={0,0,0}, font_color={1,1,1}
+        position={0,3,-6}, rotation={0,0,0}, height=500, width=1200,
+        font_size=350, color={0,0,0}, font_color={1,1,1}
     })
 ---    self.createButton({
 ---      label="Move", click_function="buttonClick_transpose", function_owner=self,

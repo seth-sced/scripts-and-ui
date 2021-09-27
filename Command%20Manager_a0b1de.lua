@@ -63,6 +63,10 @@ local function run_instruction(instruction, initialization_state, arguments)
         arguments = arguments
     })
 
+    if (not result) or type(result)~="table" then
+        return build_error(initialization_state.configuration, table.concat({"Command \"", instruction:getName(), "\" did not return a table from do_instruction call. Type \"", type(result), "\" was returned."}))
+    end
+
     if not result.is_successful then
         return build_error(result.configuration, result.error_message)
     end
@@ -165,6 +169,7 @@ local function call_handler(handler, handler_state, handler_constants)
     if not results.is_successful then return create_handler_error(results.card, results.zone, results.handled, results.error_message) end
 
     merge_tables(handler_state, results)
+    command_state = handler_state.command_state
 end
 
 ---@param handler_state table<string, any>

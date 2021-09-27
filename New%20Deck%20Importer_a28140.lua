@@ -106,7 +106,7 @@ function onLoad()
             return true, nil
         end)
 
-        taboo:with(initialize, configuration)
+        taboo:with(initialize, nil, configuration)
     end, 1)
 end
 
@@ -160,25 +160,47 @@ local function position_card(source, count, zones, keep_card)
     end
 end
 
+---@param name string
+---@param index number
+---@param source TTSObject
+---@param zone ArkhamImportZone
+---@param count number
+local function take_card(name, index, source, zone, count)
+    source:takeObject {
+        position = {0, 1.5, 0},
+        index = index,
+        smooth = false,
+        callback_function = position_card(source, count, zone, true)
+    }
+    debug_print(table.concat({ "Added", count, "of", name}, " "), Priority.DEBUG)
+end
+
 ---@param source TTSObject
 ---@param target_name string
 ---@param target_subname string
 ---@param count number
 ---@param zone ArkhamImportZone[]
 local function process_card(source, target_name, target_subname, count, zone)
+   ---@type GetObjectResults[]
+    local partial_matches = {}
+
     for _, card in ipairs(source:getObjects()) do
         if (card.name == target_name and (not target_subname or card.description==target_subname)) then
-            source:takeObject {
-                position = {0, 1.5, 0},
-                index = card.index,
-                smooth = false,
-                callback_function = position_card(source, count, zone, true)
-            }
-            debug_print(table.concat({ "Added", count, "of", target_name}, " "), Priority.DEBUG)
-            return
+            return take_card(target_name, card.index, source, zone, count)
+        elseif card.name == target_name then
+            table.insert(partial_matches, card)
         end
     end
-    debug_print(table.concat({ "Card not found:", target_name}, " "), Priority.WARNING)
+
+    local match_count = #partial_matches
+
+    if match_count>1 then
+        debug_print(table.concat {"Found multiple cards with name \"", target_name, "\" none of which matched the given subtitle of \"", target_subname, "\". One or more of the cards in Tabletop Simulator likely has the wrong text in its description."}, Priority.WARNING)
+    elseif match_count==1 then
+        take_card(target_name, partial_matches[1], source, zone, count)
+    else
+        debug_print(table.concat({ "Card not found:", target_name}, " "), Priority.WARNING)
+    end
 end
 
 ---@param source TTSObject
@@ -419,9 +441,9 @@ function build_deck()
         end
 
         return true, JSON.decode(status.text)
-    end)
+    end, function (status)  end)
 
-    deck:with(on_deck_result, configuration)
+    deck:with(on_deck_result, nil, configuration)
 end
 
 ---@type Request
@@ -445,6 +467,8 @@ function Request:new(uri, configure)
     end
 
     this.uri = uri
+
+    debug_print(table.concat({"Opened connection to: ", this.uri}), Priority.DEBUG)
 
     WebRequest.get(uri, function(status)
         configure(this, status)
@@ -531,11 +555,14 @@ function Request.with_all(requests, on_success, on_error, ...)
 end
 
 ---@param callback fun(content: any, vararg any)
-function Request:with(callback, ...)
+---@param error_handler fun(error_message: string, vararg any)
+function Request:with(callback, error_handler, ...)
     local arguments = table.pack(...)
     Wait.condition(function ()
         if self.is_successful then
             callback(self.content, table.unpack(arguments))
+        else
+            if error_handler then error_handler(self.error_message, table.unpack(arguments)) else debug_print(self.error_message, Priority.ERROR) end
         end
     end, function () return self.is_done
     end)

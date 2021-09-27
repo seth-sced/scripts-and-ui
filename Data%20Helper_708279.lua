@@ -52,7 +52,7 @@ LOCATIONS_DATA_JSON = [[
   "Wilderness_3c5ea8": {"type": "perPlayer", "value": 0, "clueSide": "back"},
   "Wilderness": {"type": "perPlayer", "value": 1, "clueSide": "back"},
   "Unhallowed Land_552a1d": {"type": "perPlayer", "value": 0, "clueSide": "back"},
-  "Unhallowed Land": {"type": "perPlayer", "value": 1, "clueSide": "back"},
+  "Unhallowed Land_15983c": {"type": "perPlayer", "value": 1, "clueSide": "back"},
 
   "Flooded Square": {"type": "perPlayer", "value": 1, "clueSide": "back"},
   "Streets of Venice": {"type": "fixed", "value": 2, "clueSide": "back"},
@@ -1236,6 +1236,118 @@ PLAYER_CARD_DATA_JSON = [[
   "Shrine of the Moirai (3)": {
   "tokenType": "resource",
   "tokenCount": 3
+  },
+  "Archive of Conduits": {
+  "tokenType": "resource",
+  "tokenCount": 4
+  },
+  "Archive of Conduits (4)": {
+  "tokenType": "resource",
+  "tokenCount": 4
+  },
+  "Eon Chart (1)": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Eon Chart (4)": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Brand of Cthugha (1)": {
+  "tokenType": "resource",
+  "tokenCount": 6
+  },
+  "Brand of Cthugha (4)": {
+  "tokenType": "resource",
+  "tokenCount": 9
+  },
+  "True Magick (5)": {
+  "tokenType": "resource",
+  "tokenCount": 1
+  },
+  "Healing Words (3)": {
+  "tokenType": "resource",
+  "tokenCount": 4
+  },
+  "Close the Circle (1)": {
+  "tokenType": "resource",
+  "tokenCount": 1
+  },
+  "Bangle of Jinxes (1)": {
+  "tokenType": "resource",
+  "tokenCount": 1
+  },
+  "Jury-Rig": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Bandages": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Schoffner's Catalogue": {
+  "tokenType": "resource",
+  "tokenCount": 5
+  },
+  "Antiquary (3)": {
+  "tokenType": "resource",
+  "tokenCount": 2
+  },
+  "Crafty (3)": {
+  "tokenType": "resource",
+  "tokenCount": 2
+  },
+  "Bruiser (3)": {
+  "tokenType": "resource",
+  "tokenCount": 2
+  },
+  "Sleuth (3)": {
+  "tokenType": "resource",
+  "tokenCount": 2
+  },
+  "Prophetic (3)": {
+  "tokenType": "resource",
+  "tokenCount": 2
+  },
+  "Earthly Serenity (4)": {
+  "tokenType": "resource",
+  "tokenCount": 6
+  },
+  "Earthly Serenity (1)": {
+  "tokenType": "resource",
+  "tokenCount": 4
+  },
+  "Enchanted Bow (2)": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Blur (4)": {
+  "tokenType": "resource",
+  "tokenCount": 4
+  },
+  "Blur (1)": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Professor William Webb (2)": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Professor William Webb": {
+  "tokenType": "resource",
+  "tokenCount": 3
+  },
+  "Divination (4)": {
+  "tokenType": "resource",
+  "tokenCount": 6
+  },
+  "Divination (1)": {
+  "tokenType": "resource",
+  "tokenCount": 4
+  },
+  "Cover Up:Advanced": {
+  "tokenType": "clue",
+  "tokenCount": 4
   },
   
   "xxx": {
