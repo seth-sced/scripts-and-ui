@@ -16,33 +16,8 @@ function createDownloadButton()
     })
 end
 
-
-
 --Triggered by download button,
 function buttonClick_download()
-    local url = self.getGMNotes()
-    local request = WebRequest.get(url, function (request) complete_obj_download(request) end )
-    request_obj = request
-    startLuaCoroutine(Global, 'my_coroutine')
-end
-
-function complete_obj_download(request)
-  assert(request.is_done)
-  if request.is_error or request.response_code ~= 200 then
-    print('error: ' .. request.error)
-  else
-    if pcall(function ()
-               local replaced_object = self
-                 spawnObjectJSON({json = request.text, position = replaced_object.getPosition(), rotation = replaced_object.getRotation()})
-                 destroyObject(replaced_object)
-             
-             end) then
-      print('Object loaded.')
-    else
-      print('Error loading object.')
-    end
-  end
-
-  request_obj = nil
-  UI.setAttribute('download_progress', 'percentage', 100)
+    local params = { url = self.getGMNotes(), replace = self.guid }
+    Global.call('placeholder_download', params)
 end

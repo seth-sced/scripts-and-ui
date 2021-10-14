@@ -842,7 +842,8 @@ function update_list(objects)
       {
         tag = 'Text',
         value = v.name,
-        attributes = { onClick = 'onClick_select('.. urlencode(JSON.encode(v)) ..')' }
+        attributes = { onClick = 'onClick_select('.. urlencode(JSON.encode(v)) ..')',
+                       alignment = 'MiddleLeft' }
       }
     )
   end
@@ -878,14 +879,15 @@ function complete_obj_download(request, params)
   else
     if pcall(function ()
                local replaced_object
-               --print(params.replace)
                pcall(function () if params.replace then replaced_object = getObjectFromGUID(params.replace) end end)
-               --print(replaced_object)
                if replaced_object then
-                 spawnObjectJSON({json = request.text, position = replaced_object.getPosition(), rotation = replaced_object.getRotation()})
+                 local pos = replaced_object.getPosition()
+                 local rot = replaced_object.getRotation()
+                 local json = request.text
                  destroyObject(replaced_object)
+                 Wait.frames(function () spawnObjectJSON({json = json, position = pos, rotation = rot}) end, 1)
                else
-                 spawnObjectJSON({json = request.text})
+                 spawnObjectJSON({json = json})
                end
              end) then
       print('Object loaded.')
@@ -897,6 +899,12 @@ function complete_obj_download(request, params)
   request_obj = nil
   UI.setAttribute('download_progress', 'percentage', 100)
 
+end
+
+-- the download button on the placeholder objects calls this to directly initiate a download
+function placeholder_download(params)
+  -- params is a table with url and guid of replacement object, which happens to match what onClick_select wants
+  onClick_select(nil, JSON.encode(params))
 end
 
 function completed_list_update(request)
