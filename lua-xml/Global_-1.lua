@@ -879,11 +879,15 @@ function complete_obj_download(request, params)
   else
     if pcall(function ()
                local replaced_object
-               pcall(function () if params.replace then replaced_object = getObjectFromGUID(params.replace) end end)
+               pcall(function ()
+                       if params.replace then
+                         replaced_object = getObjectFromGUID(params.replace)
+                       end
+                     end)
+               local json = request.text
                if replaced_object then
                  local pos = replaced_object.getPosition()
                  local rot = replaced_object.getRotation()
-                 local json = request.text
                  destroyObject(replaced_object)
                  Wait.frames(function () spawnObjectJSON({json = json, position = pos, rotation = rot}) end, 1)
                else
