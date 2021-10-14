@@ -52,6 +52,11 @@ function onload()
 
 end
 
+function onObjectDrop(player, obj)
+--  local mat = getObjectFromGUID("dsbd0ff4")
+--  log(mat.positionToLocal(obj.getPosition()))
+end
+
 function take_callback(object_spawned, mat)
     customObject = object_spawned.getCustomObject()
     local player = mat.getGUID();
@@ -760,4 +765,181 @@ function updateRandomSeed()
     if chance == 1 then
         math.randomseed(os.time())
     end
+end
+
+
+-- Content Importing
+
+
+--- Loadable Items test
+
+local list_url = 'https://raw.githubusercontent.com/seth-sced/loadable-objects/main/library.json'
+local library = nil
+
+local request_obj
+
+---
+
+function onClick_toggleUi(player, window)
+  toggle_ui(window)
+end
+
+function onClick_refreshList()
+  local request = WebRequest.get(list_url, completed_list_update)
+  request_obj = request
+  startLuaCoroutine(Global, 'my_coroutine')
+end
+
+function onClick_select(player, params)
+  params = JSON.decode(urldecode(params))
+  local url = params.url
+  local request = WebRequest.get(url, function (request) complete_obj_download(request, params) end )
+  request_obj = request
+  startLuaCoroutine(Global, 'my_coroutine')
+end
+
+function onClick_load()
+  UI.show('progress_display')
+  UI.hide('load_button')
+end
+
+function onClick_cancel()
+end
+
+---
+
+function toggle_ui(title)
+  UI.hide('load_ui')
+  if UI.getValue('title') == title or title == 'Hidden' then
+    UI.setValue('title', 'Hidden')
+  else
+    UI.setValue('title', title)
+    update_window_content(title)
+    UI.show('load_ui')
+  end
+end
+
+function my_coroutine()
+  while request_obj do
+    UI.setAttribute('download_progress', 'percentage', request_obj.download_progress * 100)
+    coroutine.yield(0)
+  end
+  return 1
+end
+
+
+function update_list(objects)
+  local ui = UI.getXmlTable()
+  local update_height = find_tag_with_id(ui, 'ui_update_height')
+  local update_children = find_tag_with_id(update_height.children, 'ui_update_point')
+
+  update_children.children = {}
+
+  for i,v in ipairs(objects) do
+    local s = JSON.encode(v);
+    --print(s)
+    table.insert(update_children.children,
+      {
+        tag = 'Text',
+        value = v.name,
+        attributes = { onClick = 'onClick_select('.. urlencode(JSON.encode(v)) ..')' }
+      }
+    )
+  end
+
+  update_height.attributes.height = #(update_children.children) * 24
+  UI.setXmlTable(ui)
+end
+
+function update_window_content(new_title)
+  if not library then
+    return
+  end
+
+  if new_title == 'Campaigns' then
+    update_list(library.campaigns)
+  elseif new_title == 'Standalone Scenarios' then
+    update_list(library.scenarios)
+  elseif new_title == 'Investigators' then
+    update_list(library.investigators)
+  elseif new_title == 'Community Content' then
+    update_list(library.community)
+  elseif new_title == 'Extras' then
+    update_list(library.extras)
+  else
+    update_list({})
+  end
+end
+
+function complete_obj_download(request, params)
+  assert(request.is_done)
+  if request.is_error or request.response_code ~= 200 then
+    print('error: ' .. request.error)
+  else
+    if pcall(function ()
+               local replaced_object
+               --print(params.replace)
+               pcall(function () if params.replace then replaced_object = getObjectFromGUID(params.replace) end end)
+               --print(replaced_object)
+               if replaced_object then
+                 spawnObjectJSON({json = request.text, position = replaced_object.getPosition(), rotation = replaced_object.getRotation()})
+                 destroyObject(replaced_object)
+               else
+                 spawnObjectJSON({json = request.text})
+               end
+             end) then
+      print('Object loaded.')
+    else
+      print('Error loading object.')
+    end
+  end
+
+  request_obj = nil
+  UI.setAttribute('download_progress', 'percentage', 100)
+
+end
+
+function completed_list_update(request)
+  assert(request.is_done)
+  if request.is_error or request.response_code ~= 200 then
+    print('error: ' .. request.error)
+  else
+    local json_response = nil
+    if pcall(function () json_response = JSON.decode(request.text) end) then
+      library = json_response
+      update_window_content(UI.getValue('title'))
+    else
+      print('error parsing downloaded library')
+    end
+  end
+
+  request_obj = nil
+  UI.setAttribute('download_progress', 'percentage', 100)
+end
+
+---
+
+function find_tag_with_id(ui, id)
+  for i,obj in ipairs(ui) do
+    if obj.attributes and obj.attributes.id and obj.attributes.id == id then
+      return obj
+    end
+    if obj.children then
+      local result = find_tag_with_id(obj.children, id)
+      if result then return result end
+    end
+  end
+  return nil
+end
+
+function urlencode(str)
+  str = string.gsub(str, "([^A-Za-z0-9-_.~])",
+    function (c) return string.format("%%%02X", string.byte(c)) end)
+  return str
+end
+
+function urldecode(str)
+  str = string.gsub(str, "%%(%x%x)",
+    function (h) return string.char(tonumber(h, 16)) end)
+  return str
 end

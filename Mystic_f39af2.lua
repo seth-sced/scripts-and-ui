@@ -1,51 +1,3 @@
--- Bundled by luabundle {"version":"1.6.0"}
-local __bundle_require, __bundle_loaded, __bundle_register, __bundle_modules = (function(superRequire)
-	local loadingPlaceholder = {[{}] = true}
-
-	local register
-	local modules = {}
-
-	local require
-	local loaded = {}
-
-	register = function(name, body)
-		if not modules[name] then
-			modules[name] = body
-		end
-	end
-
-	require = function(name)
-		local loadedModule = loaded[name]
-
-		if loadedModule then
-			if loadedModule == loadingPlaceholder then
-				return nil
-			end
-		else
-			if not modules[name] then
-				if not superRequire then
-					local identifier = type(name) == 'string' and '\"' .. name .. '\"' or tostring(name)
-					error('Tried to require ' .. identifier .. ', but no such module has been registered')
-				else
-					return superRequire(name)
-				end
-			end
-
-			loaded[name] = loadingPlaceholder
-			loadedModule = modules[name](require, loaded, register, modules)
-			loaded[name] = loadedModule
-		end
-
-		return loadedModule
-	end
-
-	return require, loaded, register, modules
-end)(nil)
-__bundle_register("__root", function(require, _LOADED, __bundle_register, __bundle_modules)
-require("ClassCardContainer")
-
-end)
-__bundle_register("ClassCardContainer", function(require, _LOADED, __bundle_register, __bundle_modules)
 -- Class card bag implementation.  Mimics the behavior of the previous SCED
 -- card memory bags, but spawns cards from the All Cards Bag instead.
 --
@@ -53,6 +5,14 @@ __bundle_register("ClassCardContainer", function(require, _LOADED, __bundle_regi
 -- well as sorting those lists.  See that object for more information.
 
 local allCardsBagGuid = "15bb07"
+
+-- Lines which define the card layout area.  The X threshold is shared, basic
+-- cards have Z > 47 while upgrades have Z < -46
+-- Note that the SCED table is rotated, making X the vertical (up the table)
+-- axis and Z the side-to-side axis
+local CARD_AREA_X_THRESHOLD = 22
+local CARD_AREA_BASIC_Z_THRESHOLD = 47
+local CARD_AREA_UPGRADED_Z_THRESHOLD = -46
 
 local skillCount = 0
 local eventCount = 0
@@ -62,14 +22,14 @@ local assetCount = 0
 -- table.  Cards will lay out horizontally, then create additional rows
 local startPositions = {
   upgrades = {
-    skill = Vector(58.09966, 1.31, -47.42),
-    event = Vector(52.94421, 1.31, -47.42),
-    asset = Vector(40.29005, 1.31, -47.42),
+    skill = Vector(58.09966, 1.36, -47.42),
+    event = Vector(52.94421, 1.36, -47.42),
+    asset = Vector(40.29005, 1.36, -47.42),
   },
   level0 = {
-    skill = Vector(58.38383, 1.31, 92.39036),
-    event = Vector(53.22857, 1.31, 92.44123),
-    asset = Vector(40.9602, 1.31, 92.44869),
+    skill = Vector(58.38383, 1.36, 92.39036),
+    event = Vector(53.22857, 1.36, 92.44123),
+    asset = Vector(40.9602, 1.36, 92.44869),
   },
 }
 
@@ -83,6 +43,7 @@ local cardsPerRow = 20
 
 -- Tracks cards which are placed by this "bag" so they can be recalled
 local placedCardGuids = { }
+local placedCardsCount = 0
 
 -- In order to mimic the behavior of the previous memory buttons we use a
 -- a temporary bag when recalling objects.  This bag is tiny and transparent,
@@ -110,6 +71,7 @@ local recallBag = {
 function onLoad(savedData)
   createPlaceRecallButtons()
   placedCardGuids = { }
+  placedCardCount = 0
   if (savedData ~= nil) then
     local saveState = JSON.decode(savedData)
     if (saveState.placedCards ~= nil) then
@@ -144,7 +106,7 @@ end
 -- the class) and description (whether to spawn basic cards or upgraded)
 function buttonClick_place()
   -- Cards already on the table, don't spawn more
-  if (#placedCardGuids > 0) then
+  if (placedCardCount > 0) then
     return
   end
   local cardClass = self.getName()
@@ -161,8 +123,16 @@ function buttonClick_place()
 end
 
 -- Spawn all cards from the returned index
-function placeCards(cardList)
-  for _, card in ipairs(cardList) do
+function placeCards(cardIdList)
+  local allCardsBag = getObjectFromGUID(allCardsBagGuid)
+  local indexReady = allCardsBag.call("isIndexReady")
+  if (not indexReady) then
+    broadcastToAll("Still loading player cards, please try again in a few seconds", {0.9, 0.2, 0.2})
+    return
+  end
+
+  for _, cardId in ipairs(cardIdList) do
+    local card = allCardsBag.call("getCardById", { id = cardId })
     placeCard(card.data, card.metadata)
   end
 end
@@ -176,6 +146,10 @@ function placeCard(cardData, cardMetadata)
   elseif (cardMetadata.type == "Asset") then
     destinationPos = getAssetPosition(cardMetadata.level > 0)
   end
+  -- Clear the GUID from the card's data so it will get a new GUID on spawn.
+  -- This solves the issue of duplicate GUIDs being spawned and causing problems
+  -- with recall
+  cardData.GUID = nil
   local spawnedCard = spawnObjectData({
     data = cardData,
     position = destinationPos,
@@ -236,25 +210,62 @@ end
 
 -- Callback function which adds a spawned card to the tracking list
 function recordPlacedCard(spawnedCard)
-  table.insert(placedCardGuids, spawnedCard.getGUID())
+  if (spawnedCard.getName() == "Protecting the Anirniq (2)") then
+    log("Spawned PtA "..spawnedCard.getGUID())
+  end
+  placedCardGuids[spawnedCard.getGUID()] = true
+  placedCardCount = placedCardCount + 1
 end
 
 -- Recalls all spawned cards to the bag, and clears the placedCardGuids list
 function buttonClick_recall()
   local trash = spawnObjectData({data = recallBag, position = self.getPosition()})
-  for _, cardGuid in ipairs(placedCardGuids) do
+  for cardGuid, _ in pairs(placedCardGuids) do
     local card = getObjectFromGUID(cardGuid)
     if (card ~= nil) then
       trash.putObject(card)
+      placedCardGuids[cardGuid] = nil
+      placedCardCount = placedCardCount - 1
     end
   end
+
+  if (placedCardCount > 0) then
+    -- Couldn't recall all the cards, check and pull them from decks
+    local decksInArea = { }
+    local allObjects = getAllObjects()
+    for _, object in ipairs(allObjects) do
+      if (object.name == "Deck" and isInArea(object)) then
+        table.insert(decksInArea, object)
+      end
+    end
+    for _, deck in ipairs(decksInArea) do
+      local cardsInDeck = deck.getObjects()
+      for i, card in ipairs(cardsInDeck) do
+        if (placedCardGuids[card.guid]) then
+          trash.putObject(deck.takeObject({ guid = card.guid }))
+          break
+        end
+      end
+    end
+  end
+
   trash.destruct()
+  -- We've recalled everything we can, some cards may have been moved out of the
+  -- card area.  Just reset at this point.
   placedCardGuids = { }
+  placedCardCount = 0
+end
+
+function isInArea(object)
+  if (object == nil) then
+    return false
+  end
+  local position = object.getPosition()
+  return position.x > CARD_AREA_X_THRESHOLD
+      and (position.z > CARD_AREA_BASIC_Z_THRESHOLD
+          or position.z < CARD_AREA_UPGRADED_Z_THRESHOLD)
 end
 
 function div(a,b)
     return (a - a % b) / b
 end
-
-end)
-return __bundle_require("__root")

@@ -1,51 +1,3 @@
--- Bundled by luabundle {"version":"1.6.0"}
-local __bundle_require, __bundle_loaded, __bundle_register, __bundle_modules = (function(superRequire)
-	local loadingPlaceholder = {[{}] = true}
-
-	local register
-	local modules = {}
-
-	local require
-	local loaded = {}
-
-	register = function(name, body)
-		if not modules[name] then
-			modules[name] = body
-		end
-	end
-
-	require = function(name)
-		local loadedModule = loaded[name]
-
-		if loadedModule then
-			if loadedModule == loadingPlaceholder then
-				return nil
-			end
-		else
-			if not modules[name] then
-				if not superRequire then
-					local identifier = type(name) == 'string' and '\"' .. name .. '\"' or tostring(name)
-					error('Tried to require ' .. identifier .. ', but no such module has been registered')
-				else
-					return superRequire(name)
-				end
-			end
-
-			loaded[name] = loadingPlaceholder
-			loadedModule = modules[name](require, loaded, register, modules)
-			loaded[name] = loadedModule
-		end
-
-		return loadedModule
-	end
-
-	return require, loaded, register, modules
-end)(nil)
-__bundle_register("__root", function(require, _LOADED, __bundle_register, __bundle_modules)
-require("AllCardsBag")
-
-end)
-__bundle_register("AllCardsBag", function(require, _LOADED, __bundle_register, __bundle_modules)
 
 local cardIdIndex = { }
 local classAndLevelIndex = { }
@@ -56,7 +8,19 @@ local allowRemoval = false
 
 function onLoad()
   self.addContextMenuItem("Rebuild Index", startIndexBuild)
+  math.randomseed(os.time())
   Wait.frames(startIndexBuild, 30)
+end
+
+-- Called by Hotfix bags when they load.  If we are still loading indexes, then
+-- the all cards and hotfix bags are being loaded together, and we can ignore
+-- this call as the hotfix will be included in the initial indexing.  If it is
+-- called once indexing is complete it means the hotfix bag has been added
+-- later, and we should rebuild the index to integrate the hotfix bag.
+function rebuildIndexForHotfix()
+  if (indexingDone) then
+    startIndexBuild()
+  end
 end
 
 -- Resets all current bag indexes
@@ -83,7 +47,16 @@ end
 function startIndexBuild(playerColor)
   clearIndexes()
   startLuaCoroutine(self, "buildIndex")
-end
+end
+
+function onObjectLeaveContainer(container, object)
+  if (container == self and not allowRemoval) then
+    broadcastToAll(
+        "Removing cards from the All Player Cards bag may break some functions.  Please replace the card.",
+        {0.9, 0.2, 0.2}
+    )
+  end
+end
 
 -- Debug option to suppress the warning when cards are removed from the bag
 function setAllowCardRemoval()
@@ -100,7 +73,7 @@ function buildIndex()
   if (self.getData().ContainedObjects == nil) then
     return 1
   end
-  for i,cardData in ipairs(self.getData().ContainedObjects) do
+  for i, cardData in ipairs(self.getData().ContainedObjects) do
     local cardMetadata = JSON.decode(cardData.GMNotes)
     if (cardMetadata ~= nil) then
       addCardToIndex(cardData, cardMetadata)
@@ -109,9 +82,18 @@ function buildIndex()
       coroutine.yield(0)
     end
   end
-  for _, indexTable in pairs(classAndLevelIndex) do
-    table.sort(indexTable, cardComparator)
+  local hotfixBags = getObjectsWithTag("AllCardsHotfix")
+  for _, hotfixBag in ipairs(hotfixBags) do
+    if (#hotfixBag.getObjects() > 0) then
+      for i, cardData in ipairs(hotfixBag.getData().ContainedObjects) do
+        local cardMetadata = JSON.decode(cardData.GMNotes)
+        if (cardMetadata ~= nil) then
+          addCardToIndex(cardData, cardMetadata)
+        end
+      end
+    end
   end
+  buildSupplementalIndexes()
   indexingDone = true
   return 1
 end
@@ -120,69 +102,76 @@ end
 -- Param cardData: TTS object data for the card
 -- Param cardMetadata: SCED metadata for the card
 function addCardToIndex(cardData, cardMetadata)
-  -- Every card gets added to the ID index
   cardIdIndex[cardMetadata.id] = { data = cardData, metadata = cardMetadata }
   if (cardMetadata.alternate_ids ~= nil) then
     for _, alternateId in ipairs(cardMetadata.alternate_ids) do
       cardIdIndex[alternateId] = { data = cardData, metadata = cardMetadata }
     end
   end
+end
 
-  -- Add card to the basic weakness list, if appropriate.  Some weaknesses have
-  -- multiple copies, and are added multiple times
-  if (cardMetadata.weakness and cardMetadata.basicWeaknessCount ~= nil) then
-    for i = 1, cardMetadata.basicWeaknessCount do
-      table.insert(basicWeaknessList, cardMetadata.id)
+function buildSupplementalIndexes()
+  for cardId, card in pairs(cardIdIndex) do
+    local cardData = card.data
+    local cardMetadata = card.metadata
+    -- Add card to the basic weakness list, if appropriate.  Some weaknesses have
+    -- multiple copies, and are added multiple times
+    if (cardMetadata.weakness and cardMetadata.basicWeaknessCount ~= nil) then
+      for i = 1, cardMetadata.basicWeaknessCount do
+        table.insert(basicWeaknessList, cardMetadata.id)
+      end
+    end
+
+    -- Add the card to the appropriate class and level indexes
+    local isGuardian = false
+    local isSeeker = false
+    local isMystic = false
+    local isRogue = false
+    local isSurvivor = false
+    local isNeutral = false
+    local upgradeKey
+    if (cardMetadata.class ~= nil and cardMetadata.level ~= nil) then
+      isGuardian = string.match(cardMetadata.class, "Guardian")
+      isSeeker = string.match(cardMetadata.class, "Seeker")
+      isMystic = string.match(cardMetadata.class, "Mystic")
+      isRogue = string.match(cardMetadata.class, "Rogue")
+      isSurvivor = string.match(cardMetadata.class, "Survivor")
+      isNeutral = string.match(cardMetadata.class, "Neutral")
+      if (cardMetadata.level > 0) then
+        upgradeKey = "-upgrade"
+      else
+        upgradeKey = "-level0"
+      end
+      if (isGuardian) then
+        table.insert(classAndLevelIndex["Guardian"..upgradeKey], cardMetadata.id)
+      end
+      if (isSeeker) then
+        table.insert(classAndLevelIndex["Seeker"..upgradeKey], cardMetadata.id)
+      end
+      if (isMystic) then
+        table.insert(classAndLevelIndex["Mystic"..upgradeKey], cardMetadata.id)
+      end
+      if (isRogue) then
+        table.insert(classAndLevelIndex["Rogue"..upgradeKey], cardMetadata.id)
+      end
+      if (isSurvivor) then
+        table.insert(classAndLevelIndex["Survivor"..upgradeKey], cardMetadata.id)
+      end
+      if (isNeutral) then
+        table.insert(classAndLevelIndex["Neutral"..upgradeKey], cardMetadata.id)
+      end
     end
   end
-
-  -- Add the card to the appropriate class and level indexes
-  local isGuardian = false
-  local isSeeker = false
-  local isMystic = false
-  local isRogue = false
-  local isSurvivor = false
-  local isNeutral = false
-  local upgradeKey
-  if (cardMetadata.class == nil or cardMetadata.level == nil) then
-    -- If either class or level is missing, don't add this card to those indexes
-    return
-  end
-
-  isGuardian = string.match(cardMetadata.class, "Guardian")
-  isSeeker = string.match(cardMetadata.class, "Seeker")
-  isMystic = string.match(cardMetadata.class, "Mystic")
-  isRogue = string.match(cardMetadata.class, "Rogue")
-  isSurvivor = string.match(cardMetadata.class, "Survivor")
-  isNeutral = string.match(cardMetadata.class, "Neutral")
-  if (cardMetadata.level > 0) then
-    upgradeKey = "-upgrade"
-  else
-    upgradeKey = "-level0"
-  end
-  if (isGuardian) then
-    table.insert(classAndLevelIndex["Guardian"..upgradeKey], { data = cardData, metadata = cardMetadata })
-  end
-  if (isSeeker) then
-    table.insert(classAndLevelIndex["Seeker"..upgradeKey], { data = cardData, metadata = cardMetadata })
-  end
-  if (isMystic) then
-    table.insert(classAndLevelIndex["Mystic"..upgradeKey], { data = cardData, metadata = cardMetadata })
-  end
-  if (isRogue) then
-    table.insert(classAndLevelIndex["Rogue"..upgradeKey], { data = cardData, metadata = cardMetadata })
-  end
-  if (isSurvivor) then
-    table.insert(classAndLevelIndex["Survivor"..upgradeKey], { data = cardData, metadata = cardMetadata })
-  end
-  if (isNeutral) then
-    table.insert(classAndLevelIndex["Neutral"..upgradeKey], { data = cardData, metadata = cardMetadata })
+  for _, indexTable in pairs(classAndLevelIndex) do
+    table.sort(indexTable, cardComparator)
   end
 end
 
 -- Comparison function used to sort the class card bag indexes.  Sorts by card
 -- level, then name, then subname.
-function cardComparator(card1, card2)
+function cardComparator(id1, id2)
+  local card1 = cardIdIndex[id1]
+  local card2 = cardIdIndex[id2]
   if (card1.metadata.level ~= card2.metadata.level) then
     return card1.metadata.level < card2.metadata.level
   end
@@ -190,6 +179,10 @@ function cardComparator(card1, card2)
     return card1.data.Nickname < card2.data.Nickname
   end
   return card1.data.Description < card2.data.Description
+end
+
+function isIndexReady()
+  return indexingDone
 end
 
 -- Returns a specific card from the bag, based on ArkhamDB ID
@@ -237,10 +230,11 @@ end
 function getRandomWeaknessId()
   local pickedIndex = math.random(#basicWeaknessList)
   local weaknessId = basicWeaknessList[pickedIndex]
---  table.remove(basicWeaknessList, pickedIndex)
+  if (#basicWeaknessList > 1) then
+    table.remove(basicWeaknessList, pickedIndex)
+  else
+    broadcastToAll("All weaknesses have been drawn!", {0.9, 0.2, 0.2})
+  end
 
   return weaknessId
 end
-
-end)
-return __bundle_require("__root")
