@@ -773,10 +773,17 @@ end
 
 --- Loadable Items test
 
-local list_url = 'https://raw.githubusercontent.com/seth-sced/loadable-objects/main/library.json'
+local source_repo = 'https://raw.githubusercontent.com/seth-sced/loadable-objects/main'
+local list_url = 'library.json'
 local library = nil
 
 local request_obj
+
+---
+
+function get_source_repo()
+  return source_repo
+end
 
 ---
 
@@ -785,14 +792,14 @@ function onClick_toggleUi(player, window)
 end
 
 function onClick_refreshList()
-  local request = WebRequest.get(list_url, completed_list_update)
+  local request = WebRequest.get(get_source_repo() .. '/' .. list_url, completed_list_update)
   request_obj = request
   startLuaCoroutine(Global, 'my_coroutine')
 end
 
 function onClick_select(player, params)
   params = JSON.decode(urldecode(params))
-  local url = params.url
+  local url = get_source_repo() .. '/' .. params.url
   local request = WebRequest.get(url, function (request) complete_obj_download(request, params) end )
   request_obj = request
   startLuaCoroutine(Global, 'my_coroutine')
